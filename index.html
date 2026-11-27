@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mega Drive Studio</title>
+  <meta name="description" content="Herramientas gráficas para desarrollar juegos de Sega Genesis / Mega Drive: conversor, paletas, sprites, tiles, tilemaps y exportación a SGDK.">
+  <link rel="icon" href="/mega-drive-studio/icon-f6575dbde8dfc8d1.png" integrity="sha384-B8aA8Q8sE2HL5g3n09xB8vtCSOjK91NtkaeiHCTNbvjvml17fo0F7HJaT4xQEh1a"/>
+  <!-- wasm-opt con las mismas extensiones de WebAssembly que activa Rust por defecto. -->
+  
+<script type="module">
+import init, * as bindings from '/mega-drive-studio/genesis_studio-1c343add0923b0d5.js';
+
+const wasm = await init({ module_or_path: '/mega-drive-studio/genesis_studio-d4c47c834c21e66a_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script>
+
+  <!-- Google Analytics 4 con Consent Mode: sin cookies hasta que el visitante acepta. -->
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    function mdsConsentSaved() {
+      try { return localStorage.getItem("mds_consent"); } catch (e) { return null; }
+    }
+    gtag("consent", "default", {
+      ad_storage: "denied",
+      ad_user_data: "denied",
+      ad_personalization: "denied",
+      analytics_storage: mdsConsentSaved() === "si" ? "granted" : "denied",
+    });
+    gtag("js", new Date());
+    gtag("config", "G-EY639S5QEB");
+  </script>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-EY639S5QEB"></script>
+
+  <style>
+    :root {
+      --bg: #000;
+      --panel: #111;
+      --border: #555;
+      --text: #ddd;
+      --dim: #999;
+      --accent: #ff0055;
+      --gold: #ffcc00;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    #mds_canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      /* Igual que el mínimo de la ventana de escritorio: la interfaz no entra en menos. */
+      min-width: 960px;
+      min-height: 600px;
+      outline: none;
+    }
+    #mds_loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      text-align: center;
+      padding: 0 16px;
+    }
+    #mds_loading h1 {
+      margin: 0;
+      font-size: 22px;
+      letter-spacing: 3px;
+      color: var(--gold);
+    }
+    #mds_loading p { margin: 0; color: var(--dim); }
+    #mds_loading pre { color: var(--accent); white-space: pre-wrap; max-width: 90vw; }
+    #mds_consent {
+      position: fixed;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      max-width: 640px;
+      margin: 0 auto;
+      background: var(--panel);
+      border: 2px solid var(--border);
+      padding: 14px 16px;
+      display: none;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      z-index: 10;
+      font-size: 14px;
+      line-height: 1.4;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+    }
+    #mds_consent p { margin: 0; flex: 1 1 280px; }
+    #mds_consent button {
+      font: inherit;
+      padding: 6px 14px;
+      border: 2px solid var(--border);
+      background: #222;
+      color: var(--text);
+      cursor: pointer;
+    }
+    #mds_consent button.ok { border-color: var(--accent); background: var(--accent); color: #fff; }
+    #mds_consent button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  </style>
+<link rel="modulepreload" href="/mega-drive-studio/genesis_studio-1c343add0923b0d5.js" crossorigin="anonymous" integrity="sha384-Lp0FvtL+K8n2Q/e9vo7xFqGEGBRXyel9k0YsbGro1+r+R4yLC9N8kSGVd4/7T58A"><link rel="preload" href="/mega-drive-studio/genesis_studio-d4c47c834c21e66a_bg.wasm" crossorigin="anonymous" integrity="sha384-q6TtAOV/yxIfVXF+9UnuQpHxHP13WE0f/ocN3MZhFV2fwKBel9Dm7LA9KwKrz/3c" as="fetch" type="application/wasm"></head>
+<body>
+  <canvas id="mds_canvas"></canvas>
+
+  <div id="mds_loading">
+    <h1>MEGA DRIVE STUDIO</h1>
+    <p>Cargando…</p>
+    <noscript><p>Hace falta JavaScript para usar Mega Drive Studio.</p></noscript>
+  </div>
+
+  <div id="mds_consent" role="dialog" aria-label="Cookies de estadísticas">
+    <p>Usamos Google Analytics para saber cuánta gente usa la herramienta y desde dónde llega. ¿Aceptás las cookies de estadísticas?</p>
+    <button type="button" class="ok" id="mds_consent_yes">Aceptar</button>
+    <button type="button" id="mds_consent_no">Rechazar</button>
+  </div>
+
+  <script>
+    // ---- Aviso de cookies ----
+    (function () {
+      const box = document.getElementById("mds_consent");
+      const choose = (yes) => {
+        try { localStorage.setItem("mds_consent", yes ? "si" : "no"); } catch (e) {}
+        gtag("consent", "update", { analytics_storage: yes ? "granted" : "denied" });
+        box.style.display = "none";
+        document.getElementById("mds_canvas").focus();
+      };
+      document.getElementById("mds_consent_yes").onclick = () => choose(true);
+      document.getElementById("mds_consent_no").onclick = () => choose(false);
+      if (!mdsConsentSaved()) box.style.display = "flex";
+    })();
+
+    // ---- Funciones que llama la aplicación (src/web.rs y src/pick.rs) ----
+
+    // Descarga `data` (Uint8Array) como un archivo.
+    window.mdsDownload = function (name, data) {
+      const blob = new Blob([data.slice()], { type: "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+    };
+
+    // Copia un PNG al portapapeles.
+    window.mdsCopyPng = function (data) {
+      try {
+        const blob = new Blob([data.slice()], { type: "image/png" });
+        navigator.clipboard.write([new ClipboardItem({ "image/png": blob })])
+          .catch((e) => console.warn("No se pudo copiar la imagen:", e));
+      } catch (e) {
+        console.warn("Portapapeles no disponible:", e);
+      }
+    };
+
+    // Evento de uso para Google Analytics.
+    window.mdsEvent = function (name, param, value) {
+      const params = {};
+      params[param] = value;
+      gtag("event", name, params);
+    };
+
+    // Selector de archivos: resuelve con [{name, data}] (vacío si se cancela).
+    // Con `directory` se elige una carpeta y `name` trae la ruta relativa.
+    window.mdsPickFiles = function (accept, multiple, directory) {
+      return new Promise((resolve) => {
+        const input = document.createElement("input");
+        input.type = "file";
+        if (accept) input.accept = accept;
+        input.multiple = multiple;
+        if (directory) input.webkitdirectory = true;
+        input.style.display = "none";
+        document.body.appendChild(input);
+        input.addEventListener("change", async () => {
+          const out = [];
+          for (const f of input.files) {
+            out.push({ name: f.webkitRelativePath || f.name, data: new Uint8Array(await f.arrayBuffer()) });
+          }
+          input.remove();
+          resolve(out);
+        });
+        input.addEventListener("cancel", () => {
+          input.remove();
+          resolve([]);
+        });
+        input.click();
+      });
+    };
+  </script>
+</body>
+</html>
